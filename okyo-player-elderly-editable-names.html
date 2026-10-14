@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#edf2ff">
+<title>お経プレーヤー</title>
+<style>
+  :root { --navy:#102a56; --muted:#536985; --blue:#2388e8; --green:#159b52; --line:#d6e0e8; --paper:#fffefa; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:16px 12px 28px; background:var(--paper); color:var(--navy);
+         font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; }
+  main { max-width:760px; margin:0 auto; }
+  header { display:flex; align-items:center; gap:16px; padding:22px 18px; margin-bottom:18px;
+           border-radius:24px; background:#edf2ff; }
+  .lotus { flex:0 0 76px; width:76px; height:76px; }
+  h1 { margin:0 0 7px; font-size:clamp(27px,6vw,42px); line-height:1.2; letter-spacing:.02em; }
+  header p { margin:0; font-size:clamp(16px,3.8vw,22px); line-height:1.45; color:#3f5575; }
+  .instructions { margin:0 4px 14px; font-size:18px; font-weight:700; }
+  .track { display:flex; align-items:center; gap:14px; width:100%; min-height:112px; margin:0 0 12px; padding:14px;
+           text-align:left; color:var(--navy); background:#fff; border:2px solid var(--line); border-radius:24px; }
+  .track.active { background:#eef9ee; border:3px solid var(--green); padding:13px; }
+  .play { flex:0 0 70px; width:70px; height:70px; border:0; border-radius:50%; background:var(--blue); color:white;
+          display:flex; align-items:center; justify-content:center; font-size:31px; font-weight:800; }
+  .track.active .play { background:var(--green); }
+  .tracktext { flex:1; min-width:0; }
+  .name { display:block; font-size:clamp(18px,4.7vw,26px); font-weight:800; line-height:1.35; overflow-wrap:anywhere; }
+  .status { display:block; margin-top:5px; font-size:17px; color:var(--muted); line-height:1.35; }
+  .track.active .status { color:var(--green); font-weight:800; }
+  .arrow { flex:0 0 auto; color:#5c6f88; font-size:30px; padding:0 2px; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 22px 84px; }
+  .smallbtn { border:2px solid #c9d7e7; border-radius:12px; padding:10px 13px; background:#f6f9fc; color:var(--navy);
+              font:700 15px inherit; font-size:15px; min-height:42px; }
+  .smallbtn:focus-visible, .track:focus-visible { outline:4px solid #f2c45c; outline-offset:3px; }
+  .note { display:flex; gap:13px; align-items:flex-start; padding:17px; border-radius:22px; background:#fff4d9; color:#17365f; }
+  .speaker { font-size:34px; line-height:1; }
+  .note strong { display:block; font-size:18px; line-height:1.5; }
+  .note p { margin:6px 0 0; font-size:15px; line-height:1.55; color:#52657d; }
+  .bottom { margin:14px 4px 0; font-size:13px; line-height:1.6; color:#61718a; }
+  .toast { min-height:1.5em; margin:12px 4px 0; font-size:15px; color:#31527b; }
+  @media (min-width:600px) { body { padding:28px 20px; } .track { min-height:126px; padding:18px; } .track.active { padding:17px; } .play { width:82px; height:82px; flex-basis:82px; } .actions { margin-left:100px; } }
+  @media (max-width:380px) { header { gap:10px; padding:18px 12px; } .lotus { flex-basis:58px; width:58px; height:58px; } .track { gap:10px; padding:11px; } .track.active { padding:10px; } .play { flex-basis:58px; width:58px; height:58px; font-size:27px; } .actions { margin-left:68px; } .arrow { font-size:24px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg class="lotus" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M50 8 C37 27 38 42 50 53 C62 42 63 27 50 8Z" fill="#f1c45d"/>
+      <path d="M45 52 C25 24 12 37 17 57 C22 74 37 79 49 70Z" fill="#bca4d4"/>
+      <path d="M55 52 C75 24 88 37 83 57 C78 74 63 79 51 70Z" fill="#bca4d4"/>
+      <path d="M48 66 C22 48 10 61 24 78 C34 89 44 84 50 76Z" fill="#d0bddf"/>
+      <path d="M52 66 C78 48 90 61 76 78 C66 89 56 84 50 76Z" fill="#d0bddf"/>
+      <path d="M50 34 C36 48 36 61 50 75 C64 61 64 48 50 34Z" fill="#f7f4ff" stroke="#bca4d4" stroke-width="2"/>
+    </svg>
+    <div><h1>お経プレーヤー</h1><p>聞きたいお経を選んでください</p></div>
+  </header>
+
+  <p class="instructions">▶ 聞きたいお経のボタンを押してください</p>
+  <section id="tracks" aria-label="お経の一覧"></section>
+
+  <div class="note">
+    <div class="speaker" aria-hidden="true">🔊</div>
+    <div>
+      <strong>音声は、このスマートフォンに保存したMP3を使います。</strong>
+      <p>最初に「音源を登録」を押して、ファイルアプリから曲を選んでください。登録した音源は、この端末のブラウザ内に保存されます。</p>
+    </div>
+  </div>
+  <p class="bottom">※ 音源ファイルはウェブサイトには送信されません。ご家族それぞれのスマートフォンで登録してください。ブラウザのデータや履歴を消去すると、登録した音源が消える場合があります。</p>
+  <p class="toast" id="message" role="status" aria-live="polite"></p>
+</main>
+
+<script>
+(() => {
+  const songs = [
+    { id: "chapter2", name: "方便品（第2章）" },
+    { id: "chapter16", name: "如来寿量品（第16章）" },
+    { id: "chapter21", name: "如来神力品（第21章）" },
+    { id: "chapter25", name: "観音賢菩薩行法品（第25章）" },
+    { id: "chapter28", name: "法華三昧（第28章）" }
+  ];
+  const dbName = "okyo-player-local-audio";
+  let db;
+  let currentAudio = null;
+  let currentId = null;
+  const tracks = document.getElementById("tracks");
+  const message = document.getElementById("message");
+
+  function say(text) { message.textContent = text; }
+  const namesKey = "okyo-player-custom-names";
+  function getCustomNames() {
+    try { return JSON.parse(localStorage.getItem(namesKey) || "{}"); }
+    catch (_) { return {}; }
+  }
+  function getSongName(song) {
+    const names = getCustomNames();
+    return (names[song.id] || song.name);
+  }
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      if (!("indexedDB" in window)) { reject(new Error("このブラウザでは端末内保存が使えません")); return; }
+      const request = indexedDB.open(dbName, 1);
+      request.onupgradeneeded = () => {
+        const d = request.result;
+        if (!d.objectStoreNames.contains("audio")) d.createObjectStore("audio", { keyPath: "id" });
+      };
+      request.onsuccess = () => { db = request.result; resolve(db); };
+      request.onerror = () => reject(request.error);
+    });
+  }
+  function getAudio(id) {
+    return new Promise((resolve, reject) => {
+      const request = db.transaction("audio", "readonly").objectStore("audio").get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  function saveAudio(id, file) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("audio", "readwrite");
+      tx.objectStore("audio").put({ id, blob: file, filename: file.name, savedAt: Date.now() });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+  function deleteAudio(id) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("audio", "readwrite");
+      tx.objectStore("audio").delete(id);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  function stopAudio() {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
+    currentId = null;
+    render();
+  }
+  async function playSong(song) {
+    try {
+      const saved = await getAudio(song.id);
+      if (!saved) {
+        say("「" + getSongName(song) + "」の音源がまだ登録されていません。「音源を登録」から選んでください。");
+        return;
+      }
+      if (currentId === song.id && currentAudio && !currentAudio.paused) {
+        stopAudio();
+        say("再生を停止しました。");
+        return;
+      }
+      if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
+      currentId = song.id;
+      currentAudio = new Audio(URL.createObjectURL(saved.blob));
+      currentAudio.onended = () => { currentAudio = null; currentId = null; render(); say("再生が終わりました。"); };
+      currentAudio.onerror = () => { say("音声を再生できませんでした。MP3ファイルを登録し直してください。"); currentAudio = null; currentId = null; render(); };
+      await currentAudio.play();
+      render();
+      say(getSongName(song) + "を再生中です。同じボタンを押すと停止します。");
+    } catch (e) {
+      say("音声を開けませんでした。もう一度お試しください。");
+    }
+  }
+  async function render() {
+    tracks.innerHTML = "";
+    for (const song of songs) {
+      const saved = await getAudio(song.id).catch(() => null);
+      const isPlaying = currentId === song.id && currentAudio && !currentAudio.paused;
+      const displayName = getSongName(song);
+      const card = document.createElement("div");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "track" + (isPlaying ? " active" : "");
+      button.setAttribute("aria-label", displayName + (isPlaying ? "、再生中。押すと停止" : "、押すと再生"));
+      const play = document.createElement("span");
+      play.className = "play";
+      play.setAttribute("aria-hidden", "true");
+      play.textContent = isPlaying ? "Ⅱ" : "▶";
+      const text = document.createElement("span");
+      text.className = "tracktext";
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = displayName;
+      const status = document.createElement("span");
+      status.className = "status";
+      status.textContent = isPlaying ? "再生中（押すと停止）" : (saved ? "タップして再生" : "まず音源を登録してください");
+      text.append(name, status);
+      const arrow = document.createElement("span");
+      arrow.className = "arrow";
+      arrow.setAttribute("aria-hidden", "true");
+      arrow.textContent = "›";
+      button.append(play, text, arrow);
+      button.addEventListener("click", () => playSong(song));
+      card.append(button);
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "audio/*,.mp3,.m4a";
+      fileInput.hidden = true;
+      fileInput.setAttribute("aria-label", song.name + "の音源ファイル");
+      const register = document.createElement("button");
+      register.type = "button";
+      register.className = "smallbtn";
+      register.textContent = saved ? "音源を変更" : "音源を登録";
+      register.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", async () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        try {
+          await saveAudio(song.id, file);
+          say("「" + song.name + "」の音源をこの端末に登録しました。");
+          render();
+        } catch (e) {
+          say("保存できませんでした。端末の空き容量を確認して、もう一度お試しください。");
+        }
+      });
+      const rename = document.createElement("button");
+      rename.type = "button";
+      rename.className = "smallbtn";
+      rename.textContent = "曲名を変更";
+      rename.addEventListener("click", () => {
+        const currentName = getSongName(song);
+        const answer = window.prompt("新しい曲名を入力してください", currentName);
+        if (answer === null) return;
+        const nextName = answer.trim();
+        if (!nextName) {
+          say("曲名が空欄のため、変更しませんでした。");
+          return;
+        }
+        try {
+          const names = getCustomNames();
+          names[song.id] = nextName;
+          localStorage.setItem(namesKey, JSON.stringify(names));
+          say("曲名を「" + nextName + "」に変更しました。");
+          render();
+        } catch (_) {
+          say("曲名を保存できませんでした。ブラウザの設定をご確認ください。");
+        }
+      });
+      actions.append(register, rename, fileInput);
+      if (saved) {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "smallbtn";
+        remove.textContent = "登録を解除";
+        remove.addEventListener("click", async () => {
+          if (currentId === song.id) stopAudio();
+          await deleteAudio(song.id);
+          say("「" + song.name + "」の登録を解除しました。");
+          render();
+        });
+        actions.append(remove);
+      }
+      card.append(actions);
+      tracks.append(card);
+    }
+  }
+  openDB().then(render).catch(() => {
+    say("このブラウザでは音源を端末内に保存できないようです。Safariで開いてお試しください。");
+    renderFallback();
+  });
+  function renderFallback() {
+    tracks.innerHTML = "";
+    songs.forEach(song => {
+      const row = document.createElement("div");
+      row.className = "track";
+      row.textContent = song.name + " — 音源の保存機能を利用できません";
+      tracks.append(row);
+    });
+  }
+})();
+</script>
+</body>
+</html>
